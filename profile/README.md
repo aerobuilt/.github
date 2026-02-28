@@ -2,6 +2,46 @@
 
 Aero (`aerobuilt` on npm) is a static site generator and full-stack framework with an HTML-first template engine. You write `.html` files with optional `<script>` and `<style>`; Aero compiles them at build time, outputs static HTML (and optionally a Nitro server), and plays nicely with [HTMX](https://htmx.org) and [Alpine.js](https://alpinejs.dev) for interactivity.
 
+## Quick examples so you know what we're talking about here
+
+### What templates look like
+
+
+
+```html
+<script is:build>
+	import base from '@layouts/base'
+	import header from '@components/header'
+	import site from '@content/site'
+</script>
+
+<base-layout>
+	<header-component title="{ site.title }" subtitle="{ site.tagline }" />
+	<main>
+		<h1>About</h1>
+		<p>{ site.about }</p>
+	</main>
+</base-layout>
+```
+
+File-based routing: `client/pages/about.html` → `/about`. Use a layout and components:
+
+### Component with props
+
+Components use a `-component` or `-layout` suffix in markup; you import the template (e.g. `header` → `header.html`):
+
+```html
+<script is:build>
+	import logo from '@components/logo'
+	const { title, subtitle } = aero.props
+</script>
+
+<header>
+	<logo-component if="{ Aero.url.pathname === '/' }" class="logo" />
+	<h1 else>{ title }</h1>
+	<p class="subtitle">{ subtitle }</p>
+</header>
+```
 
 ## What problems does Aero solve?
 
@@ -15,7 +55,7 @@ Aero (`aerobuilt` on npm) is a static site generator and full-stack framework wi
 
 Aero's goal is to stay as close to the web platform as possible while still being useful as a build tool. Here's an honest breakdown:
 
-_(Also see: [What Makes Aero Different?](docs/what-makes-aero-different.md) for our architectural philosophy, and [Why Not Web Components?](docs/why-not-web-components.md) for a comparison of our approaches.)_
+_(Also see: [What Makes Aero Different?](https://github.com/aerobuilt/aero/blob/main/docs/what-makes-aero-different.md) for our architectural philosophy, and [Why Not Web Components?](https://github.com/aerobuilt/aero/blob/main/docs/why-not-web-components.md) for a comparison of our approaches.)_
 
 **What stays standard:**
 
@@ -35,45 +75,6 @@ _(Also see: [What Makes Aero Different?](docs/what-makes-aero-different.md) for 
 The abstractions are thin, HTML-shaped, and designed to disappear at build time. The source looks like HTML, the output is HTML, and everything in between stays as close to the platform as possible.
 
 > **Note:** All custom attributes (`props`, `each`, `if`, `else`, etc.) also accept a `data-` prefix (e.g. `data-props`, `data-each`) for strict HTML spec compliance. Both forms are equivalent; the shorthand is preferred for readability.
-
-## Quick examples
-
-### Page (file-based routing)
-
-`client/pages/about.html` → `/about`. Use a layout and components:
-
-```html
-<script is:build>
-	import base from '@layouts/base'
-	import header from '@components/header'
-	import site from '@content/site'
-</script>
-
-<base-layout>
-	<header-component title="{ site.title }" subtitle="{ site.tagline }" />
-	<main>
-		<h1>About</h1>
-		<p>{ site.about }</p>
-	</main>
-</base-layout>
-```
-
-### Component with props
-
-Components use a `-component` or `-layout` suffix in markup; you import the template (e.g. `header` → `header.html`):
-
-```html
-<script is:build>
-	import logo from '@components/logo'
-	const { title, subtitle } = aero.props
-</script>
-
-<header>
-	<logo-component if="{ Aero.url.pathname === '/' }" class="logo" />
-	<h1 else>{ title }</h1>
-	<p class="subtitle">{ subtitle }</p>
-</header>
-```
 
 ### Script types
 
