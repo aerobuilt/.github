@@ -6,8 +6,6 @@ Aero (`aerobuilt` on npm) is a static site generator and full-stack framework wi
 
 ### What templates look like
 
-
-
 ```html
 <script is:build>
 	import base from '@layouts/base'
@@ -24,7 +22,7 @@ Aero (`aerobuilt` on npm) is a static site generator and full-stack framework wi
 </base-layout>
 ```
 
-File-based routing: `client/pages/about.html` → `/about`. Use a layout and components:
+File-based routing: `client/pages/about.html` → `/about`.
 
 ### Component with props
 
