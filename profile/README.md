@@ -1,10 +1,33 @@
-# Aero
+# ⚡ Aero
 
-Aero (`aerobuilt` on npm) is a static site generator and full-stack framework with an HTML-first template engine. You write `.html` files with optional `<script>` and `<style>`; Aero compiles them at build time, outputs static HTML (and optionally a Nitro server), and plays nicely with [HTMX](https://htmx.org) and [Alpine.js](https://alpinejs.dev) for interactivity.
+Aero is a static site generator and full-stack framework with an HTML-first template engine. You write `.html` files with optional `<script>` and `<style>`; Aero compiles them at build time, outputs static HTML (and optionally a Nitro server), and plays nicely with [HTMX](https://htmx.org) and [Alpine.js](https://alpinejs.dev) for interactivity. Links: [@aero-js/core](https://www.npmjs.com/package/@aero-js/core) — [@aero-js/create](https://www.npmjs.com/package/@aero-js/create) — [aero-vscode](https://marketplace.visualstudio.com/items?itemName=aero-js.aero-vscode)
 
-## Quick examples so you know what we're talking about here
+| Feature                    | Description                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| 🧭 File-based routing      | `/pages/about.html` → `/about`; dynamic routes with `getStaticPaths`         |
+| 🧩 Components & layouts    | Import `.html` templates; use `<name-component>` and `<name-layout>`         |
+| 📤 Props                   | Pass data via attributes or `props`; read with `Aero.props` in the component |
+| 🔁 Loops & conditionals    | `each` and `if/else-if/else` right in your markup                            |
+| 🎰 Slots                   | Layouts expose `<slot>`; pass content with `slot` and `name` attributes      |
+| 📂 Content collections     | Put data in `content/`; use `getCollection()` and markdown with `render()`   |
+| 💾 Server if needed        | Default is static; easily enable Nitro for API routes and a server           |
+| 🚢 Plain HTML output       | No hydration, no framework runtime; deploy anywhere                          |
+| 🔥 HMR (almost) everywhere | CSS, html, content, and client scripts hot-reload, with page reload fallback |
 
-### What templates look like
+## Try it out
+
+```bash
+# scaffold a new project
+pnpm create @aero-js my-app
+# or use dlx (or npx)
+pnpm dlx @aero-js/create@latest my-app
+# add to an existing project
+pnpm add @aero-js/core @aero-js/vite
+```
+
+## The Basics
+
+A page is just HTML with a build script, a layout, and components. Data comes from `content/` and is interpolated with `{ }`. Build-time code lives in `<script is:build>` and is stripped from the output; plain `<script>` is bundled for the browser.
 
 ```html
 <script is:build>
@@ -14,172 +37,425 @@ Aero (`aerobuilt` on npm) is a static site generator and full-stack framework wi
 </script>
 
 <base-layout>
-	<header-component title="{ site.title }" subtitle="{ site.tagline }" />
-	<main>
-		<h1>About</h1>
-		<p>{ site.about }</p>
-	</main>
+	<header-component title="{ site.title }" subtitle="{ site.subtitle }" />
+	<p>{ site.description }</p>
 </base-layout>
+
+<script>
+	import someFunction from '@scripts/someModule'
+	someFunction()
+</script>
 ```
 
-File-based routing: `client/pages/about.html` → `/about`.
+### Mostly just html, css and js/ts, with few things on top
 
-### Component with props
+Aero tries to stay as close to the web platform as possible: you write HTML files (not JSX), plain CSS, and plain client JS (Alpine, HTMX, vanilla, or none). Output is static HTML with no hydration or framework runtime. The thin layer Aero adds is just `{ }` expressions, `<script is:build>` (and `is:inline`, `is:blocking`), `each`/`if`/`else` directives, component imports with `-component`/`-layout`, and props (`Aero.props`, `props`, `data-props`). The source looks like HTML, the output is HTML.
 
-Components use a `-component` or `-layout` suffix in markup; you import the template (e.g. `header` → `header.html`):
+> Also check out: [What Makes Aero Different?](docs/what-makes-aero-different.md) and [Why Not Web Components?](docs/why-not-web-components.md)
+
+## File-based routing
+
+File paths under `client/pages/` become routes. A minimal project scaffold:
+
+```plaintext
+.
+├── client/
+│   ├── pages/
+│   │   ├── index.html          → /
+│   │   ├── about.html          → /about
+│   │   └── blog/
+│   │       └── [slug].html     → /blog/:slug
+│   ├── layouts/
+│   │   └── base.html           → <base-layout>
+│   └── components/
+│       ├── header.html         → <header-component>
+│       └── footer.html         → <footer-component>
+├── content/
+├── public/
+└── vite.config.ts
+```
+
+- **Pages** live in `client/pages/`; the path and filename determine the URL (`index.html` = that segment’s root).
+- **Layouts** live in `client/layouts/`; use `<name-layout>` in markup (e.g. `base.html` → `<base-layout>`).
+- **Components** live in `client/components/`; use `<name-component>` (e.g. `header.html` → `<header-component>`).
+- **Path aliases**: For convenience, `@aero-js/create` gives you: `@client/*`, `@pages/*`, `@layouts/*`, `@components/*`, and more out of the box. See `tsconfig.json` for all of them.
+
+> [!NOTE]  
+> For dynamic routes (e.g. `blog/[slug].html`), export `getStaticPaths()` from the page’s build script so the build knows which paths to generate. See [Conventions](#conventions) and [docs/content-api.md](docs/content-api.md).
+
+## Components & Layouts
+
+Import `.html` templates without the extension; use `<name-component>` or `<name-layout>` in markup. The import resolves to the template file (e.g. `header` → `header.html`):
 
 ```html
 <script is:build>
-	import logo from '@components/logo'
-	const { title, subtitle } = aero.props
+	import base from '@layouts/base'
+	import header from '@components/header'
 </script>
 
-<header>
-	<logo-component if="{ Aero.url.pathname === '/' }" class="logo" />
-	<h1 else>{ title }</h1>
-	<p class="subtitle">{ subtitle }</p>
-</header>
+<base-layout>
+	<header-component title="Hello" subtitle="World" />
+	<p>Page content here.</p>
+</base-layout>
 ```
 
-## What problems does Aero solve?
+Layouts wrap pages and expose `<slot>` for content; see [Slots](#-slots) below.
 
-- **Author in HTML** — No custom file format. Pages and components are HTML; expressions use `{ }` so your markup stays close to what ships to the browser.
-- **Clear split between build and client** — `<script is:build>` runs only at build/request time; plain `<script>` is bundled by Vite for the browser. No confusion about where code runs.
-- **Static-first, server when you need it** — Default output is a static `dist/`. Enable Nitro for API routes and optional server-side rendering while keeping the same template model.
-- **Fits the “HTML over the wire” stack** — Aero doesn’t own the DOM. Use HTMX for partial updates and Alpine for lightweight client behavior without a heavy JS framework.
-- **Content and config as code** — `content/` (e.g. `site.ts`) and optional content collections with `getCollection()` and lazy `render()` for markdown/docs.
+## Props
 
-## How close to the platform?
+Pass data into components via attributes (with `{ }` expressions) or via the `props` attribute. Inside the component, read from `Aero.props`.
 
-Aero's goal is to stay as close to the web platform as possible while still being useful as a build tool. Here's an honest breakdown:
+### 1. Props shorthand
 
-_(Also see: [What Makes Aero Different?](https://github.com/aerobuilt/aero/blob/main/docs/what-makes-aero-different.md) for our architectural philosophy, and [Why Not Web Components?](https://github.com/aerobuilt/aero/blob/main/docs/why-not-web-components.md) for a comparison of our approaches.)_
+If you have a variable named `props` in the build script, use the bare `props` attribute to pass it. The component receives that object as its props:
 
-**What stays standard:**
+```html
+<!-- Page -->
+<script is:build>
+	import base from '@layouts/base'
+	import card from '@components/card'
+	const props = { title: 'Hello', subtitle: 'World', accent: 'blue' }
+</script>
 
-- **You write HTML files** — not JSX, not a custom file format. Pages, components, and layouts are `.html`.
-- **CSS is just CSS** — no CSS-in-JS, no scoping magic, no preprocessor lock-in.
-- **Client JS is just JS** — use Alpine, HTMX, vanilla JS, or nothing at all. Aero doesn't own the DOM.
-- **Output is plain static HTML** — no hydration, no client runtime, no framework overhead.
+<base-layout>
+	<card-component props />
+</base-layout>
+```
 
-**What Aero adds:**
+### 2. Spreading an object
 
-- **`{ }` expressions** in HTML for build-time interpolation.
-- **`<script is:build>`** and other script attributes (`is:inline`, `is:blocking`) to separate build and client code.
-- **`each`**, **`if`/`else`** directives for loops and conditionals in templates.
-- **Component imports** and the `-component`/`-layout` naming convention.
-- **`aero.props`**, **`props`**, **`pass:data`** for passing data between templates.
+Use `props="{ ...obj }"` to pass any object as the component’s props:
 
-The abstractions are thin, HTML-shaped, and designed to disappear at build time. The source looks like HTML, the output is HTML, and everything in between stays as close to the platform as possible.
+```html
+<card-component props="{ ...cardProps }" />
+<!-- or build the object inline -->
+<card-component props="{ title: site.title, subtitle: site.tagline }" />
+```
 
-> **Note:** All custom attributes (`props`, `each`, `if`, `else`, etc.) also accept a `data-` prefix (e.g. `data-props`, `data-each`) for strict HTML spec compliance. Both forms are equivalent; the shorthand is preferred for readability.
+### 3. Passing data into script and style
 
-### Script types
+To use build-scope data inside a client `<script>` or `<style>`, add `props` (or `data-props`) with a **braced expression** (one `{ }`). The expression is evaluated at render time and must produce an object; its keys become global variables in script or CSS custom properties in style (e.g. `--fg`, `--bg`). Same interpolation rules as elsewhere: what you write is the expression. Bare `props` (no value) spreads a local `props` variable, same as on components.
 
-- **`<script is:build>`** — Runs at build time only. One per file. Import components, read `aero.props`, use `Aero.site`, `getCollection()`, etc.
-- **`<script>` (no attribute)** — Client module: bundled by Vite, HMR in dev.
-- **`<script is:inline>`** — Left in the HTML as-is; runs in the browser immediately (e.g. theme FOUC fix, analytics snippet).
-- **`<script is:blocking>`** — Moved into `<head>` for blocking scripts.
+#### Multiple variables in script:
 
-### Loops and conditionals
+`props="{ title, accent }"` — object literal, so `title` and `accent` become globals.
 
-Use `each` and `if` / `else-if` / `else` (with `{ }` expressions):
+#### Object’s properties as CSS vars in style:
+
+`props="{ ...theme }"` — spread so the theme’s keys become `--fg`, `--bg`, `--accent`. Passing `{ theme }` would give a single key `--theme` (the whole object), not per-property vars.
+
+```html
+<script is:build>
+	const { title, subtitle, accent } = Aero.props
+	const theme = { fg: '#111', bg: '#fff', accent }
+</script>
+
+<div class="card">
+	<h2>{ title }</h2>
+	<p>{ subtitle }</p>
+</div>
+
+<style props="{ ...theme }">
+	.card {
+		color: var(--fg);
+		background: var(--bg);
+		border: 4px solid var(--accent);
+	}
+</style>
+
+<script props="{ title, accent }">
+	console.log('Card:', title, accent)
+</script>
+```
+
+> [!NOTE]
+> All custom attributes (`props`, `each`, `if`, `else`, etc.) also accept a `data-` prefix (e.g. `data-props`, `data-each`) for strict HTML spec compliance. Both forms are equivalent; the shorthand is preferred for readability.
+
+## Loops & conditionals
+
+Use `each` and `if` / `else-if` / `else` with `{ }` expressions:
 
 ```html
 <ul>
 	<li each="{ item in items }">{ item.name }</li>
 </ul>
+
 <div if="{ user }">Hello, { user.name }</div>
 <p else>Not logged in.</p>
 ```
 
-### Content and global data
+## Slots
 
-Put TypeScript/JavaScript in `content/` (e.g. `content/site.ts`). Import in build scripts as `@content/site`; use in templates. For collections, use `getCollection('name')` and optional `render()` for markdown. See [docs/content-api.md](docs/content-api.md).
+Layouts expose `<slot>` to receive content from the page (or from a nested layout). Content between the layout’s opening and closing tags fills the slot.
 
-## Conventions
+### 1. The default slot
 
-| Convention       | Description                                                                                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Routing**      | `client/pages/index.html` → `/`, `about.html` → `/about`, `blog/[slug].html` → `/blog/:slug`. Use `getStaticPaths` for dynamic routes.                 |
-| **Components**   | Import without extension: `import header from '@components/header'` → `header.html`. Use `<header-component>` (or `-layout`) in markup.                |
-| **Props**        | Pass via attributes `title="{ x }"` or `props` / `props="{ ...obj }"`. In the component, read `aero.props`.                                            |
-| **Slots**        | Layouts expose `<slot>` (optionally named). Put content between opening/closing layout tags.                                                           |
-| **Path aliases** | `@components/*`, `@layouts/*`, `@pages/*`, `@content/*`, `@styles/*`, `@scripts/*`, `@images/*`, `@src/*`, `@server/*`, `~/*` (see template tsconfig). |
+One layout, one `<slot>`. Whatever you put between the layout tags is rendered where the slot is:
 
-## Tools and commands
+```html
+<!-- layouts/base.html -->
+<html>
+	<head>
+		...
+	</head>
+	<body>
+		<header>Site header</header>
+		<slot />
+		<footer>Site footer</footer>
+	</body>
+</html>
+```
 
-- **create-aerobuilt** — Scaffold a new app: `pnpm create aerobuilt my-app`.
-- **VS Code** — The `packages/aero-vscode` extension adds syntax and diagnostics for Aero templates.
-- **Commands (from repo root)**
-  - `pnpm install` then `pnpm dev` — Build core and run the example app.
-  - `pnpm build` — Static build to `dist/`; with Nitro enabled, also `.output/`.
-  - `pnpm preview` — Static preview.
-  - `pnpm preview:api` — Preview with Nitro (static + API from one origin).
-  - `pnpm test` — Run Vitest (packages/core).
+Content between `<base-layout>` and `</base-layout>` goes into the default slot:
 
-## Monorepo layout
+```html
+<!-- pages/about.html -->
+<script is:build>
+	import base from '@layouts/base'
+</script>
 
-| Package                        | Role                                                                    |
-| ------------------------------ | ----------------------------------------------------------------------- |
-| **packages/core**              | Compiler, runtime, Vite plugin (`@aerobuilt/core`, `@aerobuilt/vite`)   |
-| **packages/vite**              | Re-export of the Vite plugin                                            |
-| **packages/aero-vscode**       | VS Code extension (syntax, completion, diagnostics)                     |
-| **packages/create-aerobuilt**  | Project initializer (create-aerobuilt); scaffolds from minimal template |
-| **packages/templates/minimal** | Minimal template (no server, no content collections)                    |
-| **examples/kitchen-sink**      | Full demo app with content collections, Nitro API, Alpine.js, HTMX      |
-| **packages/config**            | Shared config and redirect helpers                                      |
-| **packages/content**           | Content collections and markdown rendering                              |
+<base-layout>
+	<h1>About</h1>
+	<p>This paragraph and the heading above fill the default slot.</p>
+</base-layout>
+```
+
+### 2. Nested layout
+
+A layout can use another layout. The inner layout’s `<slot>` receives the page content; the outer layout’s `<slot>` receives the inner layout’s output. So the page content flows: page → inner layout’s slot → outer layout’s slot.
+
+Your page content goes into the `<sub-layout>` slot:
+
+```html
+<!-- pages/docs.html -->
+<script is:build>
+	import sub from '@layouts/sub'
+</script>
+
+<sub-layout>
+	<h1>Docs</h1>
+	<p>This page uses a nested layout: sub → base.</p>
+</sub-layout>
+```
+
+The sub-layout uses the base layout and exposes its own default slot:
+
+```html
+<!-- layouts/sub.html -->
+<script is:build>
+	import base from '@layouts/base'
+</script>
+
+<base-layout>
+	<slot />
+</base-layout>
+```
+
+### 3. Named slots and pass-through
+
+A layout can define **named slots** with `name="..."`. The page (or an inner layout) passes content into a named slot using the `slot="..."` attribute. To pass content _through_ a nested layout into a grandparent’s named slot, use **slot passthrough**: on the inner layout’s `<slot>`, set both `name` (the name this layout uses for the hole) and `slot` (the grandparent’s slot name it forwards to).
+
+Page content is passed to a named slot with the `slot` attribute:
+
+```html
+<!-- pages/home.html -->
+<sub-layout>
+	<a href="#" slot="thru-sub">Link from Home</a>
+</sub-layout>
+```
+
+The sub layout slot passes incoming content to `thru-sub`, forwarding it to the `into-nav` slot:
+
+```html
+<!-- layouts/sub.html -->
+<base-layout>
+	<slot name="thru-sub" slot="into-nav" />
+</base-layout>
+```
+
+The base layout accepts the incoming slot with the `name` attribute and passes it along with any additional slotted content inside `<nav-component>`:
+
+```html
+<!-- layouts/base.html -->
+<nav-component>
+	<slot name="into-nav" />
+	<a href="#">Link from Base</a>
+</nav-component>
+```
+
+So, nav's default slot accepts all the slotted content, i.e. both links:
+
+```html
+<!-- components/nav.html -->
+<nav>
+	<slot />
+</nav>
+
+<!-- which will render as… -->
+<nav>
+	<a href="#">Link from Home</a>
+	<a href="#">Link from Base</a>
+</nav>
+```
+
+## Content Collections
+
+Put TypeScript or JavaScript in `content/` (e.g. `content/site.ts`). Import in build scripts as `@content/site` and use the exported data in your templates. For content collections (e.g. markdown docs), use `getCollection('name')` and optional `render()` for markdown. See [docs/content-api.md](docs/content-api.md).
+
+```html
+<script is:build>
+	import site from '@content/site'
+	import { getCollection, render } from 'aero:content'
+
+	const docs = await getCollection('docs')
+	const { html } = await render(someDoc)
+</script>
+
+<h1>{ site.title }</h1>
+<section>{ html }</section>
+```
+
+## Server when you need it
+
+By default, `pnpm build` produces a static `dist/`. Enable Nitro in your Vite config for API routes and an optional server. Add handlers under `server/api/`; they are served at `/api/...`.
+
+**`vite.config.ts`:**
+
+```ts
+plugins: aero({ server: true })
+```
+
+**`server/api/submit.post.ts`** — handles `POST /api/submit`:
+
+```ts
+import { defineHandler, readBody } from 'nitro/h3'
+
+export default defineHandler(async event => {
+	const body = await readBody(event)
+	return { ok: true, message: body.message }
+})
+```
+
+Deploy the `.output/` bundle (see [Build output](#build-output)) for static + API from one app.
+
+## Plain HTML output
+
+Aero compiles templates to static HTML. Build-time code in `<script is:build>` is stripped; only the markup and any client scripts remain. Script behavior:
+
+- **`<script is:build>`** — Runs at build (or request) time only. One per file. Import components, read `Aero.props`, use `Aero.site`, `getCollection()`, etc. Not emitted in output.
+- **`<script>` (no attribute)** — Client module: bundled by Vite, emitted and run in the browser. HMR in dev.
+- **`<script is:inline>`** — Left in the HTML as-is; runs in the browser immediately (e.g. theme FOUC fix, analytics).
+- **`<script is:blocking>`** — Moved into `<head>` for blocking scripts.
+
+There is no hydration and no framework runtime in the output; you can deploy to any static host or use Nitro for a full server.
+
+---
 
 ## Configuration
 
-In **`vite.config.ts`**, the `aero()` plugin supports:
+Aero is configured by passing options to the `aero()` Vite plugin. You can do that either directly in `vite.config.ts` or via a separate `aero.config.ts` when using `@aero-js/config`.
 
-- **`nitro`** (boolean) — Enable Nitro (API + optional server). Default `false`.
-- **`site`** (string) — Canonical site URL (e.g. `'https://example.com'`). Used for sitemap, RSS, canonical/OG tags. Exposed as `import.meta.env.SITE` and `Aero.site` in templates.
-- **`redirects`** — `[{ from, to, status? }]`. Applied in dev and passed to Nitro for production (use `redirectsToRouteRules()` from `@aerobuilt/config` in `nitro.config.ts`).
-- **`middleware`** — Optional request-time handlers in dev (redirects, rewrites, custom responses).
-- **`dirs`** — Override `client`, `server`, `dist` (defaults: `client`, `server`, `dist`).
-- **`apiPrefix`** — URL prefix for API routes (default `/api`).
+| Property         | Type                           | Description                                                                                                                                                  |
+| ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`content`**    | `boolean \| object`            | Enable content collections. Default `false`. Pass `true` or options for `@aero-js/content`.                                                                  |
+| **`server`**     | `boolean`                      | Enable Nitro (API + optional server). Default `false`.                                                                                                       |
+| **`site`**       | `string`                       | Canonical site URL (e.g. `'https://example.com'`). Used for sitemap, RSS, canonical/OG tags. Exposed as `import.meta.env.SITE` and `Aero.site` in templates. |
+| **`redirects`**  | `Array<{ from, to, status? }>` | Applied in dev and passed to Nitro for production. For static-only deploys use host redirect config (\_redirects, vercel.json, etc.).                        |
+| **`middleware`** | `Array`                        | Optional request-time handlers in dev (redirects, rewrites, custom responses).                                                                               |
+| **`dirs`**       | `object`                       | Override `client`, `server`, `dist` directories. Default `{ client, server, dist }`.                                                                         |
+| **`apiPrefix`**  | `string`                       | URL prefix for API routes. Default `'/api'`.                                                                                                                 |
 
-You can use **`aero.config.ts`** with `defineConfig` from `@aerobuilt/config` to set `site`, `redirects`, `middleware`, `content`, `server`, etc., and the Vite plugin will pick it up.
+### Configuring via the Vite plugin
 
-### Example
+Pass options to `aero()` in `vite.config.ts`. Use this when you want everything in one file or you are not using `createViteConfig`.
 
 ```ts
-import { aero } from 'aerobuilt/vite'
+// vite.config.ts
 import { defineConfig } from 'vite'
+import { aero } from '@aero-js/vite'
 
 export default defineConfig({
-	plugins: aero({
-		nitro: true,
-		site: 'https://example.com',
-		redirects: [{ from: '/home', to: '/', status: 301 }],
-	}),
+	plugins: [
+		aero({
+			site: { url: 'https://example.com' },
+			redirects: [{ from: '/home', to: '/', status: 301 }],
+			content: true,
+			server: true,
+		}),
+	],
 })
 ```
+
+### Using aero.config
+
+Projects that use `createViteConfig()` from `@aero-js/config` (e.g. @aero-js/create and the kitchen-sink example) can put Aero options in a separate **`aero.config.ts`**. The config package loads it, applies framework defaults, and passes the options into the plugin—so you keep `vite.config.ts` minimal and get typed, env-aware config in one place.
+
+**Why use it:** Aero options live in a dedicated file with `defineConfig` for types and autocomplete; you can still override Vite settings via the `vite` key. Config can be a function `(env) => ({ ... })` for different behaviour in dev vs build. If you omit the config argument, `createViteConfig()` auto-loads `aero.config.ts` from the project root.
+
+**How to use it:** Define your Aero config, then pass it into `createViteConfig` (or call `createViteConfig()` with no args to auto-load).
+
+```ts
+// aero.config.ts
+import { defineConfig } from '@aero-js/config'
+
+export default defineConfig({
+	site: { url: 'https://example.com' },
+	redirects: [{ from: '/home', to: '/', status: 301 }],
+	content: true,
+	server: true,
+	// Override default vite configs
+	vite: {
+		build: {
+			minify: false,
+		},
+	},
+})
+```
+
+```ts
+// vite.config.ts
+import { createViteConfig } from '@aero-js/config'
+import aeroConfig from './aero.config'
+
+export default createViteConfig(aeroConfig)
+```
+
+To auto-load `aero.config.ts` without importing it, use `createViteConfig()` with no arguments.
+
+## Commands
+
+Commands in an Aero project (e.g. scaffolded with `@aero-js/create`):
+
+- `pnpm dev` — Build and run dev server
+- `pnpm build` — Static build to `dist/`; with Nitro enabled, also `.output/`.
+- `pnpm preview` — Static preview.
+- `pnpm preview:api` — Preview with Nitro (static + API from one origin).
+- `pnpm test` — Run Vitest (packages/core).
 
 ## Build output
 
 - **Static only:** `pnpm build` → `dist/`. Deploy to any static host or open via `file://`.
 - **With Nitro:** Same build also produces `.output/` (e.g. `.output/public/` for static, `.output/server/` for the server). Deploy `.output/` for API + static from one app.
 
-Preview: `pnpm preview` (static) or `pnpm preview:api` (Nitro serving `dist/` + API).
+## VS Code Extension
 
-## Docs
+Language support for Aero templates in HTML files: syntax highlighting, completions, hovers, definitions, and diagnostics for Aero expressions and components.
 
-For full documentation, see the [`/docs`](/docs) directory, starting with the [Table of Contents](docs/README.md).
+[Install from VS Marketplace](https://marketplace.visualstudio.com/items?itemName=aero-js.aero-vscode)
+
+## More Documentation
+
+For more documentation, see the [`/docs`](/docs) directory, starting with the [Table of Contents](docs/README.md).
 
 ## Links
 
-- **VS Code Extension:** [Aero](https://marketplace.visualstudio.com/items?itemName=aerobuilt.aero-vscode)
-- **NPM Packages:**
-  - [`aerobuilt`](https://www.npmjs.com/package/aerobuilt)
-  - [`create-aerobuilt`](https://www.npmjs.com/package/create-aerobuilt)
-  - [`@aerobuilt/core`](https://www.npmjs.com/package/@aerobuilt/core)
-  - [`@aerobuilt/content`](https://www.npmjs.com/package/@aerobuilt/content)
-  - [`@aerobuilt/config`](https://www.npmjs.com/package/@aerobuilt/config)
-  - [`@aerobuilt/template-minimal`](https://www.npmjs.com/package/@aerobuilt/template-minimal)
+- [@aero-js/core](https://www.npmjs.com/package/@aero-js/core)
+- [@aero-js/create](https://www.npmjs.com/package/@aero-js/create)
+- [@aero-js/content](https://www.npmjs.com/package/@aero-js/content)
+- [@aero-js/config](https://www.npmjs.com/package/@aero-js/config)
+- [@aero-js/vite](https://www.npmjs.com/package/@aero-js/vite)
+- [@aero-js/template-minimal](https://www.npmjs.com/package/@aero-js/template-minimal)
+- [Aero VSCode](https://marketplace.visualstudio.com/items?itemName=aero-js.aero-vscode)
 
 ## Inspiration
 
